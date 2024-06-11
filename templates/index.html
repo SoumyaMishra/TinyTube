@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TinyTube</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: url('/static/aurora.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+        }
+        .container {
+            display: flex;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-right: 20px;
+        }
+        .content {
+            flex: 1;
+        }
+        form {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        form input[type="text"] {
+            width: 300px;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        form button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        form button:hover {
+            background-color: #0056b3;
+        }
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .video-item {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            width: calc(20% - 40px); /* 5 items per row, with margins */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .video-item img {
+            max-width: 100%;
+            border-radius: 5px;
+        }
+        .video-item h3 {
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .video-item p {
+            font-size: 12px;
+            color: #555;
+        }
+        .video-item iframe {
+            width: 100%;
+            height: 150px; /* Fixed height for iframe */
+            border: none;
+            border-radius: 5px;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .button-container button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        .button-container button:hover {
+            background-color: #0056b3;
+        }
+        .favorites {
+            margin-top: 20px;
+        }
+        .favorites h3 {
+            color: white;
+        }
+        .favorites ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .favorites li {
+            margin-bottom: 10px;
+        }
+        .favorites button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .favorites button:hover {
+            background-color: #0056b3;
+        }
+        .favorites .delete-button {
+            background-color: #FF6347;
+        }
+        .favorites .delete-button:hover {
+            background-color: #FF4500;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search YouTube Videos</h1>
+    <div class="container">
+        <div class="sidebar">
+            <h3>Favorites</h3>
+            <div class="favorites">
+                <ul>
+                    {% for name, url in favorites.items() %}
+                        <li>
+                            <button onclick="searchFavorite('{{ url }}')">{{ name }}</button>
+                            <button class="delete-button" onclick="deleteFavorite('{{ name }}')">Delete</button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <input type="text" id="favorite_name" placeholder="Favorite Name">
+                <input type="text" id="favorite_url" placeholder="YouTube URL">
+                <button onclick="addFavorite()">Add Favorite</button>
+            </div>
+        </div>
+        <div class="content">
+            <form action="/search" method="post">
+                <label for="youtube_url">YouTube URL:</label>
+                <input type="text" id="youtube_url" name="youtube_url" required>
+                <button type="submit">Search</button>
+            </form>
+            
+            {% if error %}
+                <p style="color: red;">{{ error }}</p>
+            {% endif %}
+            
+            {% if videos %}
+                <div class="video-container">
+                    {% for video in videos %}
+                        <div class="video-item">
+                            <a href="https://www.youtube.com/watch?v={{ video.videoId }}" target="_blank">
+                                <img src="{{ video.thumbnail }}" alt="Thumbnail">
+                            </a>
+                            <h3>{{ video.title }}</h3>
+                            <p>{{ video.description }}</p>
+                            <p>Published At: {{ video.publishedAt }}</p>
+                            <iframe src="https://www.youtube.com/embed/{{ video.videoId }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="button-container">
+                    {% if prev_page_token %}
+                        <form action="/prev" method="post">
+                            <input type="hidden" name="id_info" value="{{ id_info }}">
+                            <button type="submit">Prev</button>
+                        </form>
+                    {% endif %}
+                    {% if next_page_token %}
+                        <form action="/next" method="post">
+                            <input type="hidden" name="next_page_token" value="{{ next_page_token }}">
+                            <input type="hidden" name="id_info" value="{{ id_info }}">
+                            <button type="submit">Next</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function addFavorite() {
+            const name = document.getElementById('favorite_name').value;
+            const url = document.getElementById('favorite_url').value;
+            fetch('/add_favorite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, url }),
+            }).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        }
+
+        function deleteFavorite(name) {
+            fetch('/delete_favorite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name }),
+            }).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        }
+
+        function searchFavorite(url) {
+            const youtube_url_input = document.getElementById('youtube_url');
+            youtube_url_input.value = url;
+            youtube_url_input.form.submit();
+        }
+    </script>
+</body>
+</html>
